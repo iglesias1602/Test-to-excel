@@ -68,7 +68,9 @@ if __name__ == "__main__":
             input_data = getattr(test, "input_data", "")
 
             # Capture the lines of code from the test method
-            test_code_lines = inspect.getsourcelines(test)[0]
+            test_method_name = test._testMethodName
+            test_method = getattr(test_class, test_method_name)
+            test_code_lines = inspect.getsourcelines(test_method)[0]
             formatted_test_code = "".join(test_code_lines).strip()
 
             # Redirect stdout to capture the print output from the test
@@ -93,7 +95,7 @@ if __name__ == "__main__":
 
             # Append test results
             test_results.append(
-                (test_class.__name__, test._testMethodName, formatted_test_code, result)
+                (test_class.__name__, test_method_name, formatted_test_code, result)
             )
 
     # Write test results to Excel
