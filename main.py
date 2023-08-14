@@ -1,5 +1,8 @@
+# generate_excel.py
 import openpyxl
 import unittest
+import sys
+import importlib
 
 
 # Create an Excel file and write test details
@@ -23,15 +26,30 @@ def write_tests_to_excel(test_classes, excel_file):
 
 
 if __name__ == "__main__":
+    if len(sys.argv) != 3:
+        print("Usage: python generate_excel.py <test_file.py> <output_file.xlsx>")
+        sys.exit(1)
+
+    test_file = sys.argv[1]
+    output_file = sys.argv[2]
+
+    # Import the test classes from the provided test file
+    try:
+        module = importlib.import_module(test_file.replace(".py", ""))
+    except ImportError:
+        print(f"Error: Failed to import test file '{test_file}'")
+        sys.exit(1)
+
     test_classes = [
-        TestProduit,
-        TestInventory,
-        TestDistributeur,
-        TestClient,
-        TestTransaction,
+        cls
+        for cls in module.__dict__.values()
+        if isinstance(cls, type) and issubclass(cls, unittest.TestCase)
     ]
-    excel_output_file = "test_details.xlsx"
 
-    write_tests_to_excel(test_classes, excel_output_file)
+    if not test_classes:
+        print(f"No test classes found in '{test_file}'")
+        sys.exit(1)
 
-    print(f"Test details extracted and written to {excel_output_file}")
+    write_tests_to_excel(test_classes, output_file)
+
+    print(f"Test details extracted and written to {output_file}")
