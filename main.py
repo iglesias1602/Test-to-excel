@@ -1,47 +1,37 @@
 import openpyxl
-import re
+import unittest
 
 
-# Read the Python test file and extract test cases
-def extract_test_cases(file_path):
-    test_cases = []
-
-    with open(file_path, "r") as f:
-        content = f.read()
-        # Modify this regex pattern based on your test file's structure
-        test_matches = re.findall(r'def test_(.*?):\s*?r""".*?"""', content, re.DOTALL)
-
-        for test_match in test_matches:
-            test_name = test_match[0]
-            test_description = re.search(
-                r'"""(.*?)"""', test_match[1], re.DOTALL
-            ).group(1)
-            test_cases.append((test_name, test_description))
-
-    return test_cases
-
-
-# Create an Excel file and write test cases
-def write_to_excel(test_cases, excel_file):
+# Create an Excel file and write test details
+def write_tests_to_excel(test_classes, excel_file):
     wb = openpyxl.Workbook()
     sheet = wb.active
-    sheet.title = "Test Cases"
+    sheet.title = "Test Details"
 
-    sheet["A1"] = "Test Name"
-    sheet["B1"] = "Description"
+    sheet["A1"] = "Test Class"
+    sheet["B1"] = "Test Method"
 
-    for row, (test_name, description) in enumerate(test_cases, start=2):
-        sheet.cell(row=row, column=1, value=test_name)
-        sheet.cell(row=row, column=2, value=description)
+    for row, test_class in enumerate(test_classes, start=2):
+        for method_name in dir(test_class):
+            if method_name.startswith("test_"):
+                sheet.cell(row=row, column=1, value=test_class.__name__)
+                sheet.cell(row=row, column=2, value=method_name)
+
+                row += 1
 
     wb.save(excel_file)
 
 
 if __name__ == "__main__":
-    python_test_file = "path/to/your/test_file.py"
-    excel_output_file = "test_cases.xlsx"
+    test_classes = [
+        TestProduit,
+        TestInventory,
+        TestDistributeur,
+        TestClient,
+        TestTransaction,
+    ]
+    excel_output_file = "test_details.xlsx"
 
-    test_cases = extract_test_cases(python_test_file)
-    write_to_excel(test_cases, excel_output_file)
+    write_tests_to_excel(test_classes, excel_output_file)
 
-    print(f"Test cases extracted and written to {excel_output_file}")
+    print(f"Test details extracted and written to {excel_output_file}")
