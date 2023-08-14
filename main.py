@@ -6,28 +6,6 @@ import io
 import contextlib
 
 
-# Create an Excel file and write test results
-def write_test_results_to_excel(test_results, excel_file):
-    wb = openpyxl.Workbook()
-    sheet = wb.active
-    sheet.title = "Test Results"
-
-    sheet["A1"] = "Test Class"
-    sheet["B1"] = "Test Method"
-    sheet["C1"] = "Input"
-    sheet["D1"] = "Result"
-
-    for row, (test_class, test_method, input_data, result) in enumerate(
-        test_results, start=2
-    ):
-        sheet.cell(row=row, column=1, value=test_class)
-        sheet.cell(row=row, column=2, value=test_method)
-        sheet.cell(row=row, column=3, value=input_data)
-        sheet.cell(row=row, column=4, value=result)
-
-    wb.save(excel_file)
-
-
 # Custom TestResult class to capture test results
 class CustomTestResult(unittest.TextTestResult):
     def __init__(self, stream=sys.stdout, descriptions=1, verbosity=1):
@@ -73,7 +51,74 @@ if __name__ == "__main__":
         print(f"Error: Failed to import test file '{test_file}'")
         sys.exit(1)
 
-    test_results = run_tests(module)
-    write_test_results_to_excel(test_results, output_file)
+    test_classes = [
+        cls
+        for cls in module.__dict__.values()
+        if isinstance(cls, type) and issubclass(cls, unittest.TestCase)
+    ]
+    test_results = []
+
+    # Loop through test classes and their methods
+    for test_class in test_classes:
+        test_suite = unittest.TestLoader().loadTestsFromTestCase(test_class)
+
+        for test in test_suite:
+            # Capture the input_data attribute from each test method
+            input_data = getattr(test, "input_data", "")
+
+            # Redirect stdout to capture the print output from the test
+            stdout_backup = sys.stdout
+            captured_output = io.StringIO()
+            sys.stdout = captured_output
+
+            # Run the test and capture the printed output
+            with contextlib.redirect_stdout(captured_output):
+                test_result = unittest.TextTestRunner(
+                    resultclass=CustomTestResult, stream=captured_output
+                ).run(test)
+
+            # Restore stdout
+            sys.stdout = stdout_backup
+
+            # Determine test result (OK/NOT OK)
+            if test_result.wasSuccessful():
+                result = "OK"
+            else:
+                result = "NOT OK"
+
+            # Append test results
+            test_results.append(
+                (
+                    test_class.__name__,
+                    test._testMethodName,
+                    input_data,
+                    result,
+                    captured_output.getvalue(),
+                )
+            )
+
+    # Write test results to Excel
+    wb = openpyxl.Workbook()
+    sheet = wb.active
+    sheet.title = "Test Results"
+
+    sheet["A1"] = "Test Class"
+    sheet["B1"] = "Test Method"
+    sheet["C1"] = "Input"
+    sheet["D1"] = "Result"
+    sheet["E1"] = "Print Output"
+
+    for row, (test_class, test_method, input_data, result, print_output) in enumerate(
+        test_results, start=2
+    ):
+        sheet.cell(row=row, column=1, value=test_class)
+        sheet.cell(row=row, column=2, value=test_method)
+        sheet.cell(row=row, column=3, value=input_data)
+        sheet.cell(row=row, column=4, value=result)
+        sheet.cell(
+            row=row, column=5, value=print_output.strip()
+        )  # Strip newline from captured output
+
+    wb.save(output_file)
 
     print(f"Test results generated and written to {output_file}")
