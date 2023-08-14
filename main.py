@@ -4,6 +4,7 @@ import sys
 import importlib
 import io
 import contextlib
+import inspect
 
 
 # Custom TestResult class to capture test results
@@ -66,6 +67,10 @@ if __name__ == "__main__":
             # Capture the input_data attribute from each test method
             input_data = getattr(test, "input_data", "")
 
+            # Capture the lines of code from the test method
+            test_code_lines = inspect.getsourcelines(test)[0]
+            formatted_test_code = "".join(test_code_lines).strip()
+
             # Redirect stdout to capture the print output from the test
             stdout_backup = sys.stdout
             captured_output = io.StringIO()
@@ -88,13 +93,7 @@ if __name__ == "__main__":
 
             # Append test results
             test_results.append(
-                (
-                    test_class.__name__,
-                    test._testMethodName,
-                    input_data,
-                    result,
-                    captured_output.getvalue(),
-                )
+                (test_class.__name__, test._testMethodName, formatted_test_code, result)
             )
 
     # Write test results to Excel
@@ -103,21 +102,17 @@ if __name__ == "__main__":
     sheet.title = "Test Results"
 
     sheet["A1"] = "Test Class"
-    sheet["B1"] = "Test Method"
-    sheet["C1"] = "Input"
+    sheet["B1"] = "Method Test"
+    sheet["C1"] = "Code Lines"
     sheet["D1"] = "Result"
-    sheet["E1"] = "Print Output"
 
-    for row, (test_class, test_method, input_data, result, print_output) in enumerate(
+    for row, (test_class, test_method, test_code, result) in enumerate(
         test_results, start=2
     ):
         sheet.cell(row=row, column=1, value=test_class)
         sheet.cell(row=row, column=2, value=test_method)
-        sheet.cell(row=row, column=3, value=input_data)
+        sheet.cell(row=row, column=3, value=test_code)
         sheet.cell(row=row, column=4, value=result)
-        sheet.cell(
-            row=row, column=5, value=print_output.strip()
-        )  # Strip newline from captured output
 
     wb.save(output_file)
 
